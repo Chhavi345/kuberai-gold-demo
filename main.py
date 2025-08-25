@@ -1,41 +1,61 @@
-from flask import Flask, request, jsonify
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Optional
+import uuid
 
-app = Flask(__name__)
+app = FastAPI(title="KuberAI Gold Demo")
 
-# Fake database
-database = []
+# Mock DB
+transactions = {}
 
-@app.route("/gold-assistant", methods=["POST"])
-def gold_assistant():
-    user_input = request.json.get("query", "").lower()
+# -------- API 1: Ask about Gold ------------
+class AskRequest(BaseModel):
+    user_id: str
+    question: str
 
-    if "gold" in user_input:
+@app.post("/ask")
+def ask_gold(req: AskRequest):
+    question = req.question.lower()
+
+    # Detect intent for gold investment
+    if "gold" in question or "digital gold" in question or "invest" in question:
         response = {
-            "answer": "Gold is a safe investment during inflation. You can also buy digital gold using SimplifyMoney app.",
-            "nudge": "Would you like to purchase 10 INR worth of digital gold?"
+            "answer": "Gold is often considered a safe-haven investment. You can start with as little as ₹10.",
+            "nudge": "Would you like to purchase digital gold now?",
+            "next_step": "/buy_gold"
         }
     else:
-        response = {"answer": "This is not related to gold investments."}
-    
-    return jsonify(response)
+        response = {
+            "answer": "I can assist with finance queries. Try asking me about gold investments!",
+            "nudge": None,
+            "next_step": None
+        }
+    return response
 
-@app.route("/buy-gold", methods=["POST"])
-def buy_gold():
-    user = request.json.get("user", "Anonymous")
-    amount = request.json.get("amount", 10)
 
-    purchase = {
-        "user": user,
-        "amount": amount,
-        "status": "success"
+# -------- API 2: Buy Digital Gold ------------
+class BuyRequest(BaseModel):
+    user_id: str
+    amount: Optional[float] = 10.0 # default ₹10
+
+@app.post("/buy_gold")
+def buy_gold(req: BuyRequest):
+    txn_id = str(uuid.uuid4())
+    transactions[txn_id] = {
+        "user_id": req.user_id,
+        "amount": req.amount,
+        "status": "SUCCESS"
     }
-    database.append(purchase)
 
-    return jsonify({
-        "message": f"{user} successfully purchased digital gold worth {amount} INR!",
-        "database": database
-    })
+    return {
+        "message": f"Digital Gold purchase successful for ₹{req.amount}",
+        "transaction_id": txn_id,
+        "user_id": req.user_id,
+        "status": "SUCCESS"
+    }
 
-if __name__ == "__main__":
-    app.run(debug=True)
 
+# -------- API 3: View Transactions --------
+@app.get("/transactions")
+def get_transactions():
+    return transactions
