@@ -1,1 +1,3 @@
-flash
+fastapi
+uvicorn
+pydantic
